@@ -1,0 +1,85 @@
+string createInvoices(int doc_ID)
+{
+// Zoho Books Org ID
+orgId = "722265549";
+grabDocument = zoho.sign.getDocumentById(doc_ID);
+grabDocument = grabDocument.getJSON("requests");
+// info "Document details: " + grabDocument;
+email = grabDocument.get("actions").get("0").get("recipient_email");
+if(grabDocument.get("request_name") = "Business Plan Contract.pdf")
+{
+	fields = grabDocument.get("actions").get("0").get("fields");
+	// 	info fields;
+	for each  field in fields
+	{
+		if(field.get("field_name") = "installments")
+		{
+			installments = field.get("field_value").toNumber();
+		}
+		if(field.get("field_name") = "email")
+		{
+			newEmail = field.get("field_value");
+		}
+	}
+	info "Requested Installments: " + installments;
+	info "New email? " + newEmail;
+	// Grab the Deal from which the Sign doc was created
+	dealId = grabDocument.get("custom_data").get("record");
+	dealRecord = zoho.crm.getRecordById("Deals",dealId);
+	discount = dealRecord.get("Discount");
+	amount = dealRecord.get("Amount");
+	itemID = "2342210000008111017";
+	monthly = amount / installments;
+	info "Monthly Payment: " + monthly;
+	// Grab the Books Contact and begin the Invoice map
+	params = {"email":email};
+	booksSearch = zoho.books.getRecords("contacts",orgId,params,"zohobooks");
+	info booksSearch;
+	customer = booksSearch.get("contacts").get("0");
+	customerID = customer.get("contact_id");
+	info customerID;
+	invoicesCreated = 0;
+	invoiceMap = Map();
+	invoiceMap.put("customer_id",customerID);
+	if(installments = 1)
+	{
+		info "Pay everything up front, generate 1 invoice";
+		des = "Discounted payment for the business plan for paying everything upfront";
+		lineItems = List();
+		lineItemMap = Map();
+		lineItemMap.put("item_id",itemID);
+		lineItemMap.put("description",des);
+		lineItemMap.put("rate",discount);
+		lineItemMap.put("quantity",1);
+		lineItems.add(lineItemMap);
+		invoiceMap.put("line_items",lineItems);
+		response = zoho.books.createRecord("Invoices",orgId,invoiceMap,"zohobooks");
+		info "Invoice created? " + response;
+		invoicesCreated = invoicesCreated + 1;
+	}
+	else
+	{
+		iteratorList = {1,2,3,4,5,6,7,8,9,10,11,12};
+		truncatedList = iteratorList.subList(0,installments.toNumber());
+		info truncatedList;
+		lineItemMap = Map();
+		lineItemMap.put("item_id",itemID);
+		lineItemMap.put("rate",monthly);
+		lineItemMap.put("quantity",1);
+		info "Pay " + installments + "installments for " + monthly;
+		for each  number in truncatedList
+		{
+			lineItems = List();
+			des = "This is invoice " + number + "/" + installments + " to pay for the business plan";
+			lineItemMap.put("description",des);
+			lineItems.add(lineItemMap);
+			invoiceMap.put("line_items",lineItems);
+			dueDate = zoho.currentdate.addMonth(number - 1);
+			invoiceMap.put("due_date",dueDate);
+			response = zoho.books.createRecord("Invoices",orgId,invoiceMap,"zohobooks");
+			invoicesCreated = invoicesCreated + 1;
+		}
+	}
+}
+return "HA! We finished it, creating " + invoicesCreated + " invoices";
+}
